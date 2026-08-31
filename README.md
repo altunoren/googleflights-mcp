@@ -36,10 +36,12 @@ Exposes one tool: **`search_flights`**.
 ## Table of contents
 
 - [Why this exists](#why-this-exists)
+- [What can you use it for?](#what-can-you-use-it-for)
 - [Installation](#installation)
 - [Client configuration](#client-configuration)
-- [Usage example](#usage-example)
+- [How to use it](#how-to-use-it)
 - [`search_flights` reference](#search_flights-reference)
+- [Recipes for power users](#recipes-for-power-users)
 - [How the Google consent wall is handled](#how-the-google-consent-wall-is-handled)
 - [Development](#development)
 - [Troubleshooting](#troubleshooting)
@@ -52,6 +54,43 @@ same public web interface Google Flights itself uses, wraps it in the
 [Model Context Protocol](https://modelcontextprotocol.io), and runs as a
 **local** process launched by your MCP client — so your assistant can search
 real flight prices without a hosted backend or shared API key.
+
+## What can you use it for?
+
+Once it's connected, your assistant can answer real travel questions by
+actually querying Google Flights — not guessing from training data. A few
+concrete things people use it for:
+
+- **Find the cheapest option, fast** — "what's the cheapest flight from IST
+  to AYT next Friday?" gets a real, price-sorted answer in one round trip.
+- **Compare a handful of dates before booking** — ask the assistant to check
+  3–5 candidate dates in a row (or see the [scripted version](#recipe-cheapest-day-to-fly)
+  below) to spot the cheapest day to fly without opening a browser tab per
+  date.
+- **Plan round trips** — pass both `departure_date` and `return_date` and
+  get a real round-trip fare instead of adding two one-ways together.
+- **Stick to an airline (or alliance)** — loyalty-program members can filter
+  to `airlines: ["TK"]` or compare two carriers head-to-head with
+  `["TK", "PC"]`. See [Filtering by airline](#filtering-by-airline).
+- **Direct flights only** — business travelers or anyone avoiding layovers
+  can set `max_stops: 0`.
+- **Book for a group** — `adults`/`children` produce real per-passenger
+  pricing instead of a single-traveler estimate.
+- **Shop in your own currency** — set `currency` to `TRY`, `EUR`, whatever
+  you think in, instead of mentally converting from USD.
+- **Compare cabins** — run the same search with `seat: "economy"` and then
+  `seat: "business"` to see the real upgrade cost, not a rule-of-thumb
+  multiplier.
+- **Factor in carbon emissions** — every result includes `carbon_grams` and
+  `carbon_vs_typical_grams`, so an assistant can point out the
+  lower-emission option on a route, not just the cheapest one.
+- **Automate price-watching** — since `flights.py` has zero MCP dependency,
+  you can `import` and call `search()` from your own script or cron job
+  (see [Recipes](#recipes-for-power-users)) to track a route's price over
+  time — no separate scraping code to maintain.
+- **General travel-assistant conversations** — trip planning, "which is
+  cheaper, flying into JFK or EWR," multi-city comparisons — anything you'd
+  ask a human travel agent, phrased naturally in chat.
 
 ## Installation
 
@@ -106,14 +145,25 @@ args = []
 > path instead — e.g. `python -m googleflights_mcp`, or the full path to the
 > binary inside your virtualenv (`/path/to/venv/bin/googleflights-mcp`).
 
-## Usage example
+## How to use it
 
-Just ask your assistant naturally:
+You don't call the tool yourself — you just talk to your assistant, and it
+maps your request onto `search_flights`'s parameters. Some example prompts,
+grouped by what they exercise:
 
-> "List one-way economy flights from IST to AYT on September 14th, in TRY."
+| You ask | What happens under the hood |
+|---|---|
+| "List one-way economy flights from IST to AYT on September 14th, in TRY." | `trip="one-way"`, `seat="economy"`, `currency="TRY"` |
+| "Gidiş-dönüş, 20 Ekim gidiş 27 Ekim dönüş, IST-AYT" | `return_date` set → `trip` auto-switches to `round-trip` |
+| "Only Turkish Airlines flights from IST to AYT" | `airlines=["TK"]` — see [Filtering by airline](#filtering-by-airline) |
+| "Direct flights only, no layovers" | `max_stops=0` |
+| "2 adults 1 child, business class, IST to JFK" | `adults=2`, `children=1`, `seat="business"` |
+| "What's the cheapest flight next Friday?" | assistant resolves "next Friday" to `YYYY-MM-DD` itself |
+| "Which option produces less CO2?" | assistant compares `carbon_grams` across the returned `results` |
 
-The model calls `search_flights` and returns options sorted by price,
-cheapest first.
+Whatever you ask, the model calls `search_flights` and gets back options
+sorted by price, cheapest first — it doesn't have to guess, it's reading a
+real Google Flights response.
 
 ## `search_flights` reference
 
@@ -161,6 +211,56 @@ British Airways.
 > Ask your assistant in plain language too — e.g. "IST'ten LHR'ye sadece
 > British Airways ile" or "only show Turkish Airlines and Pegasus flights" —
 > the model will map that to the `airlines` parameter for you.
+
+## Recipes for power users
+
+`src/googleflights_mcp/flights.py` has zero MCP dependency, so you can drive
+it directly from a plain Python script — useful for anything beyond a
+single chat query.
+
+### Recipe: cheapest day to fly
+
+Check a whole date range and find the cheapest day to depart:
+
+```python
+import datetime as dt
+from googleflights_mcp.flights import search
+
+start = dt.date.today() + dt.timedelta(days=14)
+candidates = []
+
+for offset in range(7):  # check a week of candidate dates
+    d = (start + dt.timedelta(days=offset)).isoformat()
+    out = search(from_airport="IST", to_airport="AYT", departure_date=d,
+                 currency="TRY", max_results=1)
+    if "error" not in out:
+        candidates.append((d, out["cheapest_price"]))
+
+candidates.sort(key=lambda c: c[1])
+for date, price in candidates:
+    print(f"{date}: {price} TRY")
+```
+
+### Recipe: compare two airlines head-to-head
+
+```python
+from googleflights_mcp.flights import search
+
+for code, name in [("TK", "Turkish Airlines"), ("PC", "Pegasus")]:
+    out = search(from_airport="IST", to_airport="AYT", departure_date="2026-09-14",
+                 currency="TRY", airlines=[code], max_results=1)
+    price = out.get("cheapest_price", "no flights")
+    print(f"{name}: {price}")
+```
+
+### Recipe: price-watch cron job
+
+Run the date-range check above on a schedule (cron, GitHub Actions, a
+`launchd`/systemd timer, or Claude Code's own `/loop`/`schedule` skills if
+you're driving this from an agent) and alert yourself — email, Slack
+webhook, whatever you prefer — whenever `cheapest_price` drops below a
+threshold you set. Because `search()` returns plain dicts, wiring it into
+any alerting pipeline is just a few lines.
 
 ## How the Google consent wall is handled
 
