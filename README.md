@@ -189,6 +189,14 @@ route's typical emissions. Errors (no flights found, network failure,
 consent wall not bypassed) come back as `{"error": "...", "query": {...}}`
 instead of raising, so a failed search never crashes your MCP session.
 
+> **Known limitation — round-trip `legs`:** for `trip="round-trip"`, `price`
+> is the correct total round-trip fare, but `legs`/`departure`/`arrival`
+> only describe the **outbound** leg. Google Flights' results page returns
+> outbound options with the combined price first; picking the specific
+> return flight is a separate follow-up request that this tool doesn't
+> perform yet. If you need the return flight's schedule, run a second
+> one-way search in the opposite direction for the return date.
+
 ### Filtering by airline
 
 `airlines` takes a list of 2-letter IATA **airline** codes (not airport
