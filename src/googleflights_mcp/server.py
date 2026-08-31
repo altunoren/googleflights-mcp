@@ -22,11 +22,17 @@ def search_flights(
     currency: str = "USD",
     max_results: int = 20,
     max_stops: int | None = None,
+    airlines: list[str] | None = None,
 ) -> dict:
     """Search Google Flights for available flights between two airports.
 
     Airport codes are 3-letter IATA codes (e.g. IST, AYT, JFK).
     Dates are YYYY-MM-DD. Returns structured flight options sorted by price.
+
+    `airlines` optionally restricts results to specific 2-letter IATA
+    airline codes, e.g. ["TK"] for Turkish Airlines only, or ["TK", "PC"]
+    for Turkish Airlines + Pegasus. Omit it (or pass None/empty) to search
+    all airlines mixed together in one result list.
     """
     return search(
         from_airport=from_airport,
@@ -40,6 +46,7 @@ def search_flights(
         currency=currency,
         max_results=max_results,
         max_stops=max_stops,
+        airlines=airlines,
     )
 
 

@@ -131,10 +131,17 @@ def search(
     currency: str = "USD",
     max_results: int = 20,
     max_stops: int | None = None,
+    airlines: list[str] | None = None,
 ) -> dict:
-    """Search Google Flights and return results sorted by price ascending."""
+    """Search Google Flights and return results sorted by price ascending.
+
+    `airlines` filters results to specific 2-letter IATA airline codes
+    (e.g. `["TK"]` or `["TK", "PC"]`). Leave it `None` (the default) to
+    search across all airlines, mixed together in one result list.
+    """
     from_airport = from_airport.upper()
     to_airport = to_airport.upper()
+    airlines = [code.upper() for code in airlines] if airlines else None
 
     if return_date:
         trip = "round-trip"
@@ -165,13 +172,25 @@ def search(
     }
     if return_date:
         query_summary["return_date"] = return_date
+    if airlines:
+        query_summary["airlines"] = airlines
 
     flight_queries = [
-        FlightQuery(date=departure_date, from_airport=from_airport, to_airport=to_airport)
+        FlightQuery(
+            date=departure_date,
+            from_airport=from_airport,
+            to_airport=to_airport,
+            airlines=airlines,
+        )
     ]
     if trip == "round-trip" and return_date:
         flight_queries.append(
-            FlightQuery(date=return_date, from_airport=to_airport, to_airport=from_airport)
+            FlightQuery(
+                date=return_date,
+                from_airport=to_airport,
+                to_airport=from_airport,
+                airlines=airlines,
+            )
         )
 
     try:

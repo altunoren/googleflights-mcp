@@ -130,12 +130,37 @@ cheapest first.
 | `currency` | str | no | `USD` | ISO currency code (e.g. `TRY`, `EUR`) |
 | `max_results` | int | no | `20` | Max number of options to return |
 | `max_stops` | int | no | `None` | Max connections (0 = nonstop only) |
+| `airlines` | list[str] | no | `None` | 2-letter IATA airline codes to filter by (e.g. `["TK"]`). Omit for all airlines, mixed. |
 
 Each result includes airline names, price, stop count, departure/arrival
 times, per-leg detail, total duration, and estimated carbon emissions vs. the
 route's typical emissions. Errors (no flights found, network failure,
 consent wall not bypassed) come back as `{"error": "...", "query": {...}}`
 instead of raising, so a failed search never crashes your MCP session.
+
+### Filtering by airline
+
+`airlines` takes a list of 2-letter IATA **airline** codes (not airport
+codes) — e.g. `TK` for Turkish Airlines, `PC` for Pegasus, `BA` for British
+Airways. Three ways to use it:
+
+- **One specific airline** — `airlines: ["TK"]` returns only Turkish
+  Airlines flights.
+- **Several specific airlines** — `airlines: ["TK", "PC"]` returns flights
+  from either carrier, still sorted together by price.
+- **Mixed / all airlines (default)** — omit `airlines` entirely (or pass
+  `null`/an empty list). You'll get every airline serving the route, mixed
+  in one price-sorted list — which is what the example at the top of this
+  README shows.
+
+Verified against a live search (`IST` → `LHR`): no filter returned Turkish
+Airlines, British Airways, Austrian, and LOT mixed together; `airlines:
+["TK"]` returned only Turkish Airlines; `airlines: ["BA"]` returned only
+British Airways.
+
+> Ask your assistant in plain language too — e.g. "IST'ten LHR'ye sadece
+> British Airways ile" or "only show Turkish Airlines and Pegasus flights" —
+> the model will map that to the `airlines` parameter for you.
 
 ## How the Google consent wall is handled
 
