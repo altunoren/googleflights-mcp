@@ -1,0 +1,34 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "googleflights-mcp"
+version = "0.1.0"
+description = "Local stdio MCP server for searching Google Flights"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+dependencies = [
+    "mcp[cli]>=1.2.0,<2.0.0",
+    "fast-flights>=3.0",
+    "typing_extensions",
+]
+
+[project.scripts]
+googleflights-mcp = "googleflights_mcp.server:main"
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/googleflights_mcp"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-m 'not live'"
+markers = [
+    "live: marks tests that require live network access to Google Flights",
+]
