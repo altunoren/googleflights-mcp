@@ -44,6 +44,7 @@ Exposes one tool: **`search_flights`**.
 - [Recipes for power users](#recipes-for-power-users)
 - [How the Google consent wall is handled](#how-the-google-consent-wall-is-handled)
 - [Development](#development)
+- [FAQ](#faq)
 - [Troubleshooting](#troubleshooting)
 - [Legal notice](#legal-notice)
 
@@ -307,6 +308,32 @@ tests/
 ├── test_normalize.py    # no network, always runs
 └── test_smoke_live.py   # live network, opt-in via `-m live`
 ```
+
+## FAQ
+
+**Does this work with ChatGPT?**
+Not as-is. This project is deliberately built as a **local stdio MCP
+server** — no hosting cost, no shared-IP ban risk (see
+[Why this exists](#why-this-exists)). ChatGPT's web/desktop app currently
+only supports **remote** MCP connectors reachable over a public HTTPS URL;
+it can't spawn and talk to a local subprocess on your machine the way
+Claude Desktop, Claude Code, and Codex CLI do. To use it from ChatGPT
+you'd have to rewrite the transport to HTTP/SSE and deploy it somewhere
+public — which reintroduces the hosting cost and shared-IP risk this
+project was built to avoid. It works out of the box with the three clients
+listed in [Client configuration](#client-configuration).
+
+**Can I say "find me a cheap flight" and it just works?**
+Yes, in Claude Desktop, Claude Code, or Codex CLI, once configured — plain
+language in your own words maps onto `search_flights`'s parameters
+automatically. See [How to use it](#how-to-use-it) for example prompts.
+
+**Does it have reminders / price-drop alerts?**
+Not built in. `search_flights` is a single request-response query — it
+doesn't run in the background or notify you on its own. For "tell me when
+the price drops" behavior, you (or an agent you run) need to poll it on a
+schedule and alert yourself — see
+[Recipe: price-watch cron job](#recipe-price-watch-cron-job).
 
 ## Troubleshooting
 
